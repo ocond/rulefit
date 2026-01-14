@@ -290,7 +290,7 @@ class RuleEnsemble:
         print("Created rule_list")
         if coefs is None:
             print("coefs is none")
-            list_tf_rules = rule.transform(X) for rule in rule_list]
+            list_tf_rules = [rule.transform(X) for rule in rule_list]
             print("Rules transformed and list generated")
             list_tf_rules = np.array(list_tf_rules)
             print("converted to np_array")
