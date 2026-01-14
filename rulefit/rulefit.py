@@ -293,8 +293,8 @@ class RuleEnsemble:
             return np.array([rule.transform(X) for rule in rule_list]).T
         else:  # else use the coefs to filter the rules we bother to interpret
             print("coefs is 0")
-            print(f"Type rulelist: {type(rule_list}")
-            print(f"Type rulelist entry: {type(rule_list[0]}")
+            print(f"Type rulelist: {type(rule_list)}")
+            print(f"Type rulelist entry: {type(rule_list[0])}")
             res = [
                     rule_list[i_rule].transform(X)
                     for i_rule in np.arange(len(rule_list))
