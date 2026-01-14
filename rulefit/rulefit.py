@@ -367,6 +367,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
         n_jobs=None,
         random_state=None,
     ):
+        print("initializing RultFit...", end = "")
         self.tree_generator = tree_generator
         self.rfmode = rfmode
         self.lin_trim_quantile = lin_trim_quantile
@@ -388,16 +389,19 @@ class RuleFit(BaseEstimator, TransformerMixin):
         self.max_iter = max_iter
         self.n_jobs = n_jobs
         self.Cs = Cs
+        print("done")
 
     def fit(self, X, y=None, feature_names=None):
         """Fit and estimate linear combination of rule ensemble"""
         ## Enumerate features if feature names not provided
+        print("beginnind to fit RuleFit...", end = "")
         N = X.shape[0]
         if feature_names is None:
             self.feature_names = ["feature_" + str(x) for x in range(0, X.shape[1])]
         else:
             self.feature_names = feature_names
         if "r" in self.model_type:
+            print("selected regression type...", end = "")
             ## initialise tree generator
             if self.tree_generator is None:
                 n_estimators_default = int(np.ceil(self.max_rules / self.tree_size))
@@ -411,6 +415,8 @@ class RuleFit(BaseEstimator, TransformerMixin):
                         random_state=self.random_state,
                         max_depth=100,
                     )
+                    print("created GradientBoostingRegressor..." )
+                    
                 else:
                     self.tree_generator = GradientBoostingClassifier(
                         n_estimators=n_estimators_default,
@@ -447,6 +453,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
                     )
 
             ## fit tree generator
+            print("Fitting tree generator...", end = "")
             if not self.exp_rand_tree_size:  # simply fit with constant tree size
                 self.tree_generator.fit(X, y)
             else:  # randomise tree size as per Friedman 2005 Sec 3.3
@@ -466,6 +473,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
                 self.tree_generator.set_params(warm_start=True)
                 curr_est_ = 0
                 for i_size in np.arange(len(tree_sizes)):
+                    print(f"Fitting tree {curr_est_ +1}/{len(tree_sizes)}.")
                     size = tree_sizes[i_size]
                     self.tree_generator.set_params(n_estimators=curr_est_ + 1)
                     self.tree_generator.set_params(max_leaf_nodes=size)
@@ -478,6 +486,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
                         np.copy(X, order="C"), np.copy(y, order="C")
                     )
                     curr_est_ = curr_est_ + 1
+                print(f"Finished creating trees.")
                 self.tree_generator.set_params(warm_start=False)
             tree_list = self.tree_generator.estimators_
             if isinstance(self.tree_generator, RandomForestRegressor) or isinstance(
