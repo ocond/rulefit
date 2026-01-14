@@ -484,17 +484,26 @@ class RuleFit(BaseEstimator, TransformerMixin):
                 self.tree_generator, RandomForestClassifier
             ):
                 tree_list = [[x] for x in self.tree_generator.estimators_]
+            #ADDED LINE BELOW HERE
+            print("Finished creating rules, extracting rules now")
 
             ## extract rules
             self.rule_ensemble = RuleEnsemble(
                 tree_list=tree_list, feature_names=self.feature_names
             )
+            #ADDED LINE BELOW HERE
+            print("Finished extracting rules, concatenate original features and rules now")
 
             ## concatenate original features and rules
             X_rules = self.rule_ensemble.transform(X)
+            
+            #ADDED LINE BELOW HERE
+            print("Finished concatenating original features and rules")
 
         ## standardise linear variables if requested (for regression model only)
         if "l" in self.model_type:
+            #ADDED LINE BELOW HERE
+            print("standardizing linear variables...", end = "")
             ## standard deviation and mean of winsorized features
             self.winsorizer.train(X)
             winsorized_X = self.winsorizer.trim(X)
@@ -506,16 +515,21 @@ class RuleFit(BaseEstimator, TransformerMixin):
                 X_regn = self.friedscale.scale(X)
             else:
                 X_regn = X.copy()
+            #ADDED LINE BELOW HERE
+            print("done")
 
         ## Compile Training data
+        print("compiling training data...", end = "") #ADDED THIS LINE
         X_concat = np.zeros([X.shape[0], 0])
         if "l" in self.model_type:
             X_concat = np.concatenate((X_concat, X_regn), axis=1)
         if "r" in self.model_type:
             if X_rules.shape[0] > 0:
                 X_concat = np.concatenate((X_concat, X_rules), axis=1)
+        print("done") #ADDED THIS LINE
 
         ## fit Lasso
+        print("fitting lasso...", end = "") #ADDED THIS LINE
         if self.rfmode == "regress":
             if self.Cs is None:  # use defaultshasattr(self.Cs, "__len__"):
                 n_alphas = 100
@@ -535,9 +549,12 @@ class RuleFit(BaseEstimator, TransformerMixin):
                 n_jobs=self.n_jobs,
                 random_state=self.random_state,
             )
+            print("initialized lasso...", end = "")
             self.lscv.fit(X_concat, y)
+            print("finished fitting lasso...", end = "")
             self.coef_ = self.lscv.coef_
             self.intercept_ = self.lscv.intercept_
+            print("set intercept and coef...", end = "")
         else:
             Cs = 10 if self.Cs is None else self.Cs
             self.lscv = LogisticRegressionCV(
@@ -553,7 +570,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
             self.lscv.fit(X_concat, y)
             self.coef_ = self.lscv.coef_[0]
             self.intercept_ = self.lscv.intercept_[0]
-
+        print("done") #ADDED THIS LINE
         return self
 
     def predict(self, X):
