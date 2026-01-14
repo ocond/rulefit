@@ -364,7 +364,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
         cv=3,
         tol=0.0001,
         max_iter=None,
-        n_jobs=None,
+        n_jobs=3,
         random_state=None,
     ):
         print("initializing RultFit...", end = "")
