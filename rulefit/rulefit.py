@@ -292,8 +292,8 @@ class RuleEnsemble:
             print("coefs is none")
             list_tf_rules = [rule.transform(X) for rule in rule_list]
             print("Rules transformed and list generated")
-            print(f"Type list: {type(list_tf_rules)}")
-            print(f"Type in  list: {type(list_tf_rules[0])}")
+            print(f"Type list: {type(list_tf_rules)}, length: {len(list_tf_rules)}")
+            print(f"Type in  list: {type(list_tf_rules[0])}, shape = {list_tf_rules[0].shape}")
             list_tf_rules = np.array(list_tf_rules)
             print("converted to np_array")
             list_tf_rules = list_tf_rules.T
