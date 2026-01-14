@@ -271,7 +271,7 @@ class RuleEnsemble:
     def filter_short_rules(self, k):
         self.filter_rules(lambda x: len(x.conditions) > k)
 
-    def transform(self, X, coefs=None):
+    def transform(self, X, coefs=0):
         """Transform dataset.
 
         Parameters
@@ -293,13 +293,26 @@ class RuleEnsemble:
             return np.array([rule.transform(X) for rule in rule_list]).T
         else:  # else use the coefs to filter the rules we bother to interpret
             print("coefs is 0")
-            res = np.array(
+            print(f"Type rulelist: {type(rule_list}")
+            print(f"Type rulelist entry: {type(rule_list[0]}")
+            res = [
+                    rule_list[i_rule].transform(X)
+                    for i_rule in np.arange(len(rule_list))
+                    if coefs[i_rule] != 0
+                ]
+            print("created res")
+            res = np.array(res)
+            print("converted to numpy")
+            res = res.T
+            print("transformed")
+            
+            """res = np.array(
                 [
                     rule_list[i_rule].transform(X)
                     for i_rule in np.arange(len(rule_list))
                     if coefs[i_rule] != 0
                 ]
-            ).T
+            ).T"""
             res_ = np.zeros([X.shape[0], len(rule_list)])
             res_[:, coefs != 0] = res
             return res_
