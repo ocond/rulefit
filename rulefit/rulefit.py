@@ -294,6 +294,7 @@ class RuleEnsemble:
             print("Rules transformed and list generated")
             print(f"Type list: {type(list_tf_rules)}, length: {len(list_tf_rules)}")
             print(f"Type in  list: {type(list_tf_rules[0])}, shape = {list_tf_rules[0].shape}")
+            print(f"ndarray first sport: type: {type(list_tf_rules[0][0])}, value: {list_tf_rules[0][0]}")
             list_tf_rules = np.array(list_tf_rules)
             print("converted to np_array")
             list_tf_rules = list_tf_rules.T
