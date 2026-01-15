@@ -570,16 +570,14 @@ class RuleFit(BaseEstimator, TransformerMixin):
         print("fitting lasso...") #ADDED THIS LINE
         if self.rfmode == "regress":
             if self.Cs is None:  # use defaultshasattr(self.Cs, "__len__"):
-                n_alphas = 100
-                alphas = None
+                #n_alphas = 100
+                alphas = 100
             elif hasattr(self.Cs, "__len__"):
-                n_alphas = None
+                #n_alphas = None
                 alphas = 1.0 / self.Cs
             else:
-                n_alphas = self.Cs
-                alphas = None
+                alphas = self.Cs
             self.lscv = LassoCV(
-                n_alphas=n_alphas,
                 alphas=alphas,
                 copy_X = False, #changes this
                 cv=self.cv,
