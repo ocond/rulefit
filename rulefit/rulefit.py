@@ -436,14 +436,8 @@ class RuleFit(BaseEstimator, TransformerMixin):
         """Fit and estimate linear combination of rule ensemble"""
         if X_concat_saved is None:
             if identifier is None:
-                identifier = str(self.max_iter) + "_" + str(self.tol) + "_" + str(self.max_rules) + "_" + str(self.cv) + "_"
-                + str(self.sample_fract)+ "_"
-                + str(self.cv)+ "_"
-                + str(self.memory_par)+ "_"
-                + str(self.tree_size)+ "_"
-                + str(self.Cs)+ "_"
-                + str(self.lin_standardise) + "_"
-                + str(self.exp_rand_tree_size)
+                identifier = str(self.max_iter) + "_" + str(self.tol) + "_" + str(self.max_rules) + "_" + str(self.cv) + "_"+ str(self.sample_fract)+ "_"+ str(self.cv)+ "_"
+                identifier = identifier + str(self.memory_par)+ "_"+ str(self.tree_size)+ "_"+ str(self.Cs)+ "_"+ str(self.lin_standardise) + "_"+ str(self.exp_rand_tree_size)
             ## Enumerate features if feature names not provided
             print("beginnind to fit RuleFit...", end = "")
             N = X.shape[0]
