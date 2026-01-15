@@ -567,7 +567,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
         print("done") #ADDED THIS LINE
 
         ## fit Lasso
-        print("fitting lasso...") #ADDED THIS LINE
+        print(f"fitting lasso, rfmode = {self.rfmode}...") #ADDED THIS LINE
         if self.rfmode == "regress":
             if self.Cs is None:  # use defaultshasattr(self.Cs, "__len__"):
                 #n_alphas = 100
@@ -577,6 +577,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
                 alphas = 1.0 / self.Cs
             else:
                 alphas = self.Cs
+            print(f"alphas = {alphas}")
             self.lscv = LassoCV(
                 alphas=alphas,
                 copy_X = False, #changes this
