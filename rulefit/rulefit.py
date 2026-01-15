@@ -21,9 +21,11 @@ from sklearn.ensemble import (
     RandomForestClassifier,
 )
 from sklearn.linear_model import LassoCV, LogisticRegressionCV
+from sklearn.linear_model import Lasso
 from functools import reduce
 from ordered_set import OrderedSet
 
+standars_lasso = True
 
 class RuleCondition:
     """Class for binary rule condition
@@ -578,15 +580,26 @@ class RuleFit(BaseEstimator, TransformerMixin):
             else:
                 alphas = self.Cs
             print(f"alphas = {alphas}")
-            self.lscv = LassoCV(
-                alphas=alphas,
-                copy_X = False, #changes this
-                cv=self.cv,
-                max_iter=self.max_iter,
-                tol=self.tol,
-                n_jobs=self.n_jobs,
-                random_state=self.random_state,
-            )
+            if not standars_lasso:
+                print("initializing lasso cv...", end = "")
+                self.lscv = LassoCV(
+                    alphas=alphas,
+                    copy_X = False, #changes this
+                    cv=self.cv,
+                    max_iter=self.max_iter,
+                    tol=self.tol,
+                    n_jobs=self.n_jobs,
+                    random_state=self.random_state,
+                )
+            else:
+                print("initializing standard lasso...", end = "")
+                self.lscv = Lasso(
+                    alpha=alphas
+                    max_iter=self.max_iter,
+                    tol=self.tol,
+                    random_state=self.random_state,
+                    copy_X = False
+                )
             print("initialized lasso...", end = "")
             self.lscv.fit(X_concat, y)
             print("finished fitting lasso...", end = "")
