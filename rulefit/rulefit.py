@@ -594,7 +594,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
             else:
                 print("initializing standard lasso...", end = "")
                 self.lscv = Lasso(
-                    alpha=alphas
+                    alpha=alphas,
                     max_iter=self.max_iter,
                     tol=self.tol,
                     random_state=self.random_state,
