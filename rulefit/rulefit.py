@@ -585,7 +585,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
                 alphas = 1.0 / self.Cs
             else:
                 alphas = self.Cs
-            print(f"alphas = {alphas}")
+            print(f"alphas = {alphas}, lassotype: {}".format("standard" if standard_lasso else "cv")) #ADDED THIS LINE
             if not standard_lasso:
                 print("initializing lasso cv...", end = "")
                 self.lscv = LassoCV(
