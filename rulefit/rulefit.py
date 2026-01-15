@@ -436,12 +436,9 @@ class RuleFit(BaseEstimator, TransformerMixin):
         """Fit and estimate linear combination of rule ensemble"""
         if X_concat_saved is None:
             if identifier is None:
-                identifier = str(self.max_iter) + "_" 
-                + str(self.tol) + "_" 
-                + str(self.max_rules) + "_" 
-                + str(self.cv) + "_"
+                identifier = str(self.max_iter) + "_" + str(self.tol) + "_" + str(self.max_rules) + "_" + str(self.cv) + "_"
                 + str(self.sample_fract)+ "_"
-                + str(self.lasso_cv)+ "_"
+                + str(self.cv)+ "_"
                 + str(self.memory_par)+ "_"
                 + str(self.tree_size)+ "_"
                 + str(self.Cs)+ "_"
