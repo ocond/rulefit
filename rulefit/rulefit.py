@@ -25,7 +25,14 @@ from sklearn.linear_model import Lasso
 from functools import reduce
 from ordered_set import OrderedSet
 
-standars_lasso = True
+standard_lasso = True
+copy_X = False
+
+def set_lasso(use_standard_lasso = True, copy_X_flag = False):
+    global standard_lasso
+    global copy_X
+    standard_lasso = use_standard_lasso
+    copy_X = copy_X_flag
 
 class RuleCondition:
     """Class for binary rule condition
@@ -573,19 +580,17 @@ class RuleFit(BaseEstimator, TransformerMixin):
         print(f"fitting lasso, rfmode = {self.rfmode}...") #ADDED THIS LINE
         if self.rfmode == "regress":
             if self.Cs is None:  # use defaultshasattr(self.Cs, "__len__"):
-                #n_alphas = 100
                 alphas = 100
             elif hasattr(self.Cs, "__len__"):
-                #n_alphas = None
                 alphas = 1.0 / self.Cs
             else:
                 alphas = self.Cs
             print(f"alphas = {alphas}")
-            if not standars_lasso:
+            if not standard_lasso:
                 print("initializing lasso cv...", end = "")
                 self.lscv = LassoCV(
                     alphas=alphas,
-                    copy_X = False, #changes this
+                    copy_X = copy_X ,
                     cv=self.cv,
                     max_iter=self.max_iter,
                     tol=self.tol,
@@ -599,7 +604,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
                     max_iter=self.max_iter,
                     tol=self.tol,
                     random_state=self.random_state,
-                    copy_X = False
+                    copy_X = copy_X
                 )
             print("initialized lasso...", end = "")
             self.lscv.fit(X_concat, y)
