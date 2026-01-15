@@ -24,7 +24,6 @@ from sklearn.linear_model import LassoCV, LogisticRegressionCV
 from sklearn.linear_model import Lasso
 from functools import reduce
 from ordered_set import OrderedSet
-impport 
 
 standard_lasso = True
 copy_X = False
