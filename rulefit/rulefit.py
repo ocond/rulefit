@@ -428,6 +428,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
             self.feature_names = ["feature_" + str(x) for x in range(0, X.shape[1])]
         else:
             self.feature_names = feature_names
+        print(f"model type: {self.model_type}")
         if "r" in self.model_type:
             print("selected regression type...", end = "")
             ## initialise tree generator
@@ -566,7 +567,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
         print("done") #ADDED THIS LINE
 
         ## fit Lasso
-        print("fitting lasso...", end = "") #ADDED THIS LINE
+        print("fitting lasso...") #ADDED THIS LINE
         if self.rfmode == "regress":
             if self.Cs is None:  # use defaultshasattr(self.Cs, "__len__"):
                 n_alphas = 100
