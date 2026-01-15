@@ -28,11 +28,13 @@ from ordered_set import OrderedSet
 standard_lasso = True
 copy_X = False
 
-def set_lasso(use_standard_lasso = True, copy_X_flag = False):
+def set_lasso(use_standard_lasso = None, copy_X_flag = None):
     global standard_lasso
     global copy_X
-    standard_lasso = use_standard_lasso
-    copy_X = copy_X_flag
+    if use_standard_lasso is not None:
+        standard_lasso = use_standard_lasso
+    if copy_X_flag is not None:
+        copy_X = copy_X_flag
 
 class RuleCondition:
     """Class for binary rule condition
@@ -417,7 +419,6 @@ class RuleFit(BaseEstimator, TransformerMixin):
         self.exp_rand_tree_size = exp_rand_tree_size
         self.max_rules = max_rules
         self.sample_fract = sample_fract
-        self.max_rules = max_rules
         self.memory_par = memory_par
         self.tree_size = tree_size
         self.random_state = random_state
