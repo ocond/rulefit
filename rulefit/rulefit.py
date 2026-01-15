@@ -581,6 +581,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
             self.lscv = LassoCV(
                 n_alphas=n_alphas,
                 alphas=alphas,
+                copy_X = False, #changes this
                 cv=self.cv,
                 max_iter=self.max_iter,
                 tol=self.tol,
