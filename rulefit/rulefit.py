@@ -583,9 +583,9 @@ class RuleFit(BaseEstimator, TransformerMixin):
                     X_concat = np.concatenate((X_concat, X_rules), axis=1)
             print("done") #ADDED THIS LINE
 
-            import pickle
-            pickle.dump(X_concat, open(f"X_concat_{identifier}.pkl", "wb"))
-            print(f"saved X_concat to file X_concat_{identifier}.pkl") #ADDED THIS LINE
+            #import pickle
+            #pickle.dump(X_concat, open(f"X_concat_{identifier}.pkl", "wb"))
+            #print(f"saved X_concat to file X_concat_{identifier}.pkl") #ADDED THIS LINE
         else:
             print("loading X_concat from file...", end = "") #ADDED THIS LINE
             X_concat = X_concat_saved
