@@ -488,6 +488,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
                                                                 ccp_alpha=0.0,
                                                                 max_samples=0.2,
                                                                 monotonic_cst=None)
+                    print("created RandomForestRegressor")
                     # delete (initialize) attribute of learned tree_generator
                     delete_attributes_ = [
                         "estimators_",
