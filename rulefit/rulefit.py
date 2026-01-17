@@ -24,6 +24,8 @@ from sklearn.linear_model import LassoCV, LogisticRegressionCV
 from sklearn.linear_model import Lasso
 from functools import reduce
 from ordered_set import OrderedSet
+from joblib import Parallel, delayed
+from copy import deepcopy
 
 standard_lasso = True
 copy_X = False
@@ -542,24 +544,31 @@ class RuleFit(BaseEstimator, TransformerMixin):
                     while np.sum(tree_sizes[0:i]) < self.max_rules:
                         i = i + 1
                     tree_sizes = tree_sizes[0:i]
+                    
+                    def fit_tree_with_size(size, idx, X, y, tree_gen, random_state_base):
+                        """Fit a single tree with specified size"""
+                        gen = deepcopy(tree_gen)
+                        gen.set_params(n_estimators=1, max_leaf_nodes=size)
+                        random_state_add = random_state_base if random_state_base else 0
+                        gen.set_params(random_state=idx + random_state_add)
+                        gen.fit(np.copy(X, order="C"), np.copy(y, order="C"))
+                        return gen
+                    
+                    print(f"Fitting {len(tree_sizes)} trees in parallel")
+                    fitted_generators = Parallel(n_jobs=self.n_jobs)(
+                        delayed(fit_tree_with_size)(size, i_size, X, y, self.tree_generator, self.random_state)
+                        for i_size, size in enumerate(tree_sizes)
+                    )
+                    
+                    # Combine all estimators into single generator
                     self.tree_generator.set_params(warm_start=True)
-                    curr_est_ = 0
-                    for i_size in np.arange(len(tree_sizes)):
-                        size = tree_sizes[i_size]
-                        print(f"Fitting tree {curr_est_ +1}/{len(tree_sizes)} with tree size {size}.")
-                        self.tree_generator.set_params(n_estimators=curr_est_ + 1)
-                        self.tree_generator.set_params(max_leaf_nodes=size)
-                        random_state_add = self.random_state if self.random_state else 0
-                        self.tree_generator.set_params(
-                            random_state=i_size + random_state_add
-                        )  # warm_state=True seems to reset random_state, such that the trees are highly correlated, unless we manually change the random_sate here.
-                        self.tree_generator.get_params()["n_estimators"]
-                        self.tree_generator.fit(
-                            np.copy(X, order="C"), np.copy(y, order="C")
-                        )
-                        curr_est_ = curr_est_ + 1
-                    print(f"Finished creating trees.")
+                    all_estimators = []
+                    for gen in fitted_generators:
+                        all_estimators.extend(gen.estimators_)
+                    self.tree_generator.estimators_ = np.array(all_estimators)
+                    print(f"Finished creating {len(all_estimators)} trees.")
                     self.tree_generator.set_params(warm_start=False)
+                    
                 tree_list = self.tree_generator.estimators_
                 if isinstance(self.tree_generator, RandomForestRegressor) or isinstance(
                     self.tree_generator, RandomForestClassifier
@@ -612,6 +621,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
             #import pickle
             #pickle.dump(X_concat, open(f"X_concat_{identifier}.pkl", "wb"))
             #print(f"saved X_concat to file X_concat_{identifier}.pkl") #ADDED THIS LINE
+            
         else:
             print("loading X_concat from file...", end = "") #ADDED THIS LINE
             X_concat = X_concat_saved
