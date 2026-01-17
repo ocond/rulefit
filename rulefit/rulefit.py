@@ -472,6 +472,31 @@ class RuleFit(BaseEstimator, TransformerMixin):
                             random_state=self.random_state,
                             max_depth=100,
                         )
+                
+                elif self.tree_generator == "RandomForestRegressor":
+                    self.tree_generator = RandomForestRegressor(n_estimators=100,
+                                                                criterion='squared_error',
+                                                                max_depth= int(np.ceil(self.max_rules / self.tree_size)),
+                                                                max_leaf_nodes=self.tree_size,
+                                                                min_impurity_decrease=0.0,
+                                                                bootstrap=True,
+                                                                oob_score=False,
+                                                                n_jobs=self.n_jobs,
+                                                                random_state=self.random_state,
+                                                                verbose=3,
+                                                                warm_start=False,
+                                                                ccp_alpha=0.0,
+                                                                max_samples=0.2,
+                                                                monotonic_cst=None)
+                    # delete (initialize) attribute of learned tree_generator
+                    delete_attributes_ = [
+                        "estimators_",
+                    ]
+                    for attribute in delete_attributes_:
+                        if hasattr(self.tree_generator, attribute):
+                            delattr(self.tree_generator, attribute)
+                            print(f"delete {attribute}")
+                
                 else:
                     # delete (initialize) attribute of learned tree_generator
                     delete_attributes_ = [
