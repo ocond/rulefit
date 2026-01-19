@@ -485,7 +485,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
                                                                 min_impurity_decrease=0.0,
                                                                 bootstrap=True,
                                                                 oob_score=False,
-                                                                n_jobs=1#self.n_jobs,
+                                                                n_jobs=1,#self.n_jobs,
                                                                 random_state=self.random_state,
                                                                 verbose=3,
                                                                 warm_start=False,
@@ -557,7 +557,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
                         return gen
                     
                     print(f"Fitting {len(tree_sizes)} trees in parallel")
-                    fitted_generators = Parallel(n_jobs=self.n_jobs)(
+                    fitted_generators = Parallel(n_jobs=1)(#self.n_jobs)(
                         delayed(fit_tree_with_size)(size, i_size, X, y, self.tree_generator, self.random_state)
                         for i_size, size in enumerate(tree_sizes)
                     )
@@ -646,7 +646,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
                     cv=self.cv,
                     max_iter=self.max_iter,
                     tol=self.tol,
-                    n_jobs=1#self.n_jobs,
+                    n_jobs=1,#self.n_jobs,
                     random_state=self.random_state,
                 )
             else:
