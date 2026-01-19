@@ -72,7 +72,15 @@ class RuleCondition:
         -------
         X_transformed: array-like matrix, shape=(n_samples, 1)
         """
+        with open("log_rilefit_transform.txt", "a", encoding="utf-8") as f:
+            f.write(f"X before: type: {type(X)}, shape: {X.shape}\n")
         X = X.to_numpy()
+        with open("log_rilefit_transform.txt", "a", encoding="utf-8") as f:
+            f.write(f"X after: type: {type(X)}, shape: {X.shape}\n")
+            f.write(f"self.operator: type: {type(self.operator)}, {self.operator}\n")
+            f.write(f"self.feature_index: type: {type(self.feature_index)},  {self.feature_index}\n")
+            f.write(f"self.threshold: type: {type(self.threshold)}, {self.threshold}\n")
+        
         if self.operator == "<=":
             res = 1 * (X[:, self.feature_index] <= self.threshold)
         elif self.operator == ">":
