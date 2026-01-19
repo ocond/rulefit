@@ -408,6 +408,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
         max_iter=None,
         n_jobs=3,
         random_state=None,
+        flip_rf_params = False
     ):
         print("initializing RultFit...", end = "")
         self.tree_generator = tree_generator
@@ -430,6 +431,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
         self.max_iter = max_iter
         self.n_jobs = n_jobs
         self.Cs = Cs
+        self.flip_rf_params = flip_rf_params
         print("done")
 
 
@@ -476,9 +478,9 @@ class RuleFit(BaseEstimator, TransformerMixin):
                         )
                 
                 elif self.tree_generator == "RandomForestRegressor":
-                    self.tree_generator = RandomForestRegressor(n_estimators=100,
+                    self.tree_generator = RandomForestRegressor(n_estimators=  100 if flip_rf_params else int(np.ceil(self.max_rules / self.tree_size)),
                                                                 criterion='squared_error',
-                                                                max_depth= int(np.ceil(self.max_rules / self.tree_size)),
+                                                                max_depth= int(np.ceil(self.max_rules / self.tree_size)) if flip_rf_params else 100,
                                                                 max_leaf_nodes=self.tree_size,
                                                                 min_impurity_decrease=0.0,
                                                                 bootstrap=True,
