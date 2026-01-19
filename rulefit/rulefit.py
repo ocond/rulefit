@@ -72,6 +72,7 @@ class RuleCondition:
         -------
         X_transformed: array-like matrix, shape=(n_samples, 1)
         """
+        X = X.to_numpy()
         if self.operator == "<=":
             res = 1 * (X[:, self.feature_index] <= self.threshold)
         elif self.operator == ">":
