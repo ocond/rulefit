@@ -478,9 +478,9 @@ class RuleFit(BaseEstimator, TransformerMixin):
                         )
                 
                 elif self.tree_generator == "RandomForestRegressor":
-                    self.tree_generator = RandomForestRegressor(n_estimators=  100 if flip_rf_params else int(np.ceil(self.max_rules / self.tree_size)),
+                    self.tree_generator = RandomForestRegressor(n_estimators=  100 if self.flip_rf_params else int(np.ceil(self.max_rules / self.tree_size)),
                                                                 criterion='squared_error',
-                                                                max_depth= int(np.ceil(self.max_rules / self.tree_size)) if flip_rf_params else 100,
+                                                                max_depth= int(np.ceil(self.max_rules / self.tree_size)) if self.flip_rf_params else 100,
                                                                 max_leaf_nodes=self.tree_size,
                                                                 min_impurity_decrease=0.0,
                                                                 bootstrap=True,
