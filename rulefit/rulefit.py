@@ -417,7 +417,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
         cv=3,
         tol=0.0001,
         max_iter=None,
-        n_jobs=3,
+        n_jobs=-1,
         random_state=None,
         flip_rf_params = False
     ):
