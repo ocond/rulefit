@@ -74,7 +74,8 @@ class RuleCondition:
         """
         with open("log_rilefit_transform.txt", "a", encoding="utf-8") as f:
             f.write(f"X before: type: {type(X)}, shape: {X.shape}\n")
-        X = X.to_numpy()
+        if type(X) != np.ndarray:
+            X = X.to_numpy()
         with open("log_rilefit_transform.txt", "a", encoding="utf-8") as f:
             f.write(f"X after: type: {type(X)}, shape: {X.shape}\n")
             f.write(f"self.operator: type: {type(self.operator)}, {self.operator}\n")
@@ -110,7 +111,8 @@ class Winsorizer:
         # get winsor limits
         self.winsor_lims = np.ones([2, X.shape[1]]) * np.inf
         self.winsor_lims[0, :] = -np.inf
-        X = X.to_numpy()
+        if type(X) != np.ndarray:
+            X = X.to_numpy()
         if self.trim_quantile > 0:
             for i_col in np.arange(X.shape[1]):
                 lower = np.percentile(X[:, i_col], self.trim_quantile * 100)
@@ -144,7 +146,8 @@ class FriedScale:
 
     def train(self, X):
         # get multipliers
-        X = X.to_numpy()
+        if type(X) != np.ndarray:
+            X = X.to_numpy()
         if self.winsorizer != None:
             X_trimmed = self.winsorizer.trim(X)
         else:
