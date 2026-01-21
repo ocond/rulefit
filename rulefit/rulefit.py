@@ -193,7 +193,6 @@ class Rule:
         -------
         X_transformed: array-like matrix, shape=(n_samples, 1)
         """
-        print("tf ", end = "")
         rule_applies = [condition.transform(X) for condition in self.conditions]
         return reduce(lambda x, y: x * y, rule_applies)
 
@@ -316,31 +315,21 @@ class RuleEnsemble:
         rule_list = list(self.rules)
         print("Created rule_list")
         if coefs is None:
-            print("coefs is none")
             list_tf_rules = [rule.transform(X)[:, np.newaxis] for rule in rule_list]
             print("Rules transformed and list generated")
-            print(f"Type list: {type(list_tf_rules)}, length: {len(list_tf_rules)}")
-            print(f"Type in  list: {type(list_tf_rules[0])}, shape = {list_tf_rules[0].shape}")
-            print(f"ndarray first sport: type: {type(list_tf_rules[0][0])}, value: {list_tf_rules[0][0]}")
             list_tf_rules = np.concatenate(list_tf_rules, axis=1)
 
             
-            print("converted to np_array")
             print("Concatenated columns")
             return list_tf_rules
             #return np.array([rule.transform(X) for rule in rule_list]).T
         else:  # else use the coefs to filter the rules we bother to interpret
-            print("coefs is 0")
-            print(f"Type rulelist: {type(rule_list)}")
-            print(f"Type rulelist entry: {type(rule_list[0])}")
             res = [
                     rule_list[i_rule].transform(X)
                     for i_rule in np.arange(len(rule_list))
                     if coefs[i_rule] != 0
                 ]
-            print("created res")
             res = np.array(res)
-            print("converted to numpy")
             res = res.T
             print("transformed")
             
