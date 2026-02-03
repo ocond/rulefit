@@ -411,7 +411,8 @@ class RuleFit(BaseEstimator, TransformerMixin):
         max_iter=None,
         n_jobs=-1,
         random_state=None,
-        flip_rf_params = False
+        flip_rf_params = False,
+        max_features = None
     ):
         print("initializing RultFit...", end = "")
         self.tree_generator = tree_generator
@@ -435,6 +436,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
         self.n_jobs = n_jobs
         self.Cs = Cs
         self.flip_rf_params = flip_rf_params
+        self.max_features = max_features
         print("done")
 
     def get_rules(rf, exclude_zero_coef=False, subregion=None):
@@ -537,6 +539,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
                                                                 warm_start=False,
                                                                 ccp_alpha=0.0,
                                                                 max_samples=0.2,
+                                                                max_features = self.max_features
                                                                 monotonic_cst=None)
                     print("created RandomForestRegressor")
                     # delete (initialize) attribute of learned tree_generator
