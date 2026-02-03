@@ -539,7 +539,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
                                                                 warm_start=False,
                                                                 ccp_alpha=0.0,
                                                                 max_samples=0.2,
-                                                                max_features = self.max_features
+                                                                max_features = self.max_features,
                                                                 monotonic_cst=None)
                     print("created RandomForestRegressor")
                     # delete (initialize) attribute of learned tree_generator
