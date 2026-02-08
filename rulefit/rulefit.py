@@ -21,9 +21,22 @@ from sklearn.ensemble import (
     RandomForestClassifier,
 )
 from sklearn.linear_model import LassoCV, LogisticRegressionCV
+from sklearn.linear_model import Lasso
 from functools import reduce
 from ordered_set import OrderedSet
+from joblib import Parallel, delayed
+from copy import deepcopy
 
+standard_lasso = True
+copy_X = False
+
+def set_lasso(use_standard_lasso = None, copy_X_flag = None):
+    global standard_lasso
+    global copy_X
+    if use_standard_lasso is not None:
+        standard_lasso = use_standard_lasso
+    if copy_X_flag is not None:
+        copy_X = copy_X_flag
 
 class RuleCondition:
     """Class for binary rule condition
@@ -59,6 +72,16 @@ class RuleCondition:
         -------
         X_transformed: array-like matrix, shape=(n_samples, 1)
         """
+        with open("log_rilefit_transform.txt", "a", encoding="utf-8") as f:
+            f.write(f"X before: type: {type(X)}, shape: {X.shape}\n")
+        if type(X) != np.ndarray:
+            X = X.to_numpy()
+        with open("log_rilefit_transform.txt", "a", encoding="utf-8") as f:
+            f.write(f"X after: type: {type(X)}, shape: {X.shape}\n")
+            f.write(f"self.operator: type: {type(self.operator)}, {self.operator}\n")
+            f.write(f"self.feature_index: type: {type(self.feature_index)},  {self.feature_index}\n")
+            f.write(f"self.threshold: type: {type(self.threshold)}, {self.threshold}\n")
+        
         if self.operator == "<=":
             res = 1 * (X[:, self.feature_index] <= self.threshold)
         elif self.operator == ">":
@@ -88,6 +111,8 @@ class Winsorizer:
         # get winsor limits
         self.winsor_lims = np.ones([2, X.shape[1]]) * np.inf
         self.winsor_lims[0, :] = -np.inf
+        if type(X) != np.ndarray:
+            X = X.to_numpy()
         if self.trim_quantile > 0:
             for i_col in np.arange(X.shape[1]):
                 lower = np.percentile(X[:, i_col], self.trim_quantile * 100)
@@ -121,6 +146,8 @@ class FriedScale:
 
     def train(self, X):
         # get multipliers
+        if type(X) != np.ndarray:
+            X = X.to_numpy()
         if self.winsorizer != None:
             X_trimmed = self.winsorizer.trim(X)
         else:
@@ -166,7 +193,6 @@ class Rule:
         -------
         X_transformed: array-like matrix, shape=(n_samples, 1)
         """
-        print("tf ", end = "")
         rule_applies = [condition.transform(X) for condition in self.conditions]
         return reduce(lambda x, y: x * y, rule_applies)
 
@@ -289,30 +315,21 @@ class RuleEnsemble:
         rule_list = list(self.rules)
         print("Created rule_list")
         if coefs is None:
-            print("coefs is none")
-            list_tf_rules = [rule.transform(X) for rule in rule_list]
+            list_tf_rules = [rule.transform(X)[:, np.newaxis] for rule in rule_list]
             print("Rules transformed and list generated")
-            print(f"Type list: {type(list_tf_rules)}, length: {len(list_tf_rules)}")
-            print(f"Type in  list: {type(list_tf_rules[0])}, shape = {list_tf_rules[0].shape}")
-            print(f"ndarray first sport: type: {type(list_tf_rules[0][0])}, value: {list_tf_rules[0][0]}")
-            list_tf_rules = np.array(list_tf_rules)
-            print("converted to np_array")
-            list_tf_rules = list_tf_rules.T
-            print("Transposed np array")
+            list_tf_rules = np.concatenate(list_tf_rules, axis=1)
+
+            
+            print("Concatenated columns")
             return list_tf_rules
             #return np.array([rule.transform(X) for rule in rule_list]).T
         else:  # else use the coefs to filter the rules we bother to interpret
-            print("coefs is 0")
-            print(f"Type rulelist: {type(rule_list)}")
-            print(f"Type rulelist entry: {type(rule_list[0])}")
             res = [
                     rule_list[i_rule].transform(X)
                     for i_rule in np.arange(len(rule_list))
                     if coefs[i_rule] != 0
                 ]
-            print("created res")
             res = np.array(res)
-            print("converted to numpy")
             res = res.T
             print("transformed")
             
@@ -392,8 +409,10 @@ class RuleFit(BaseEstimator, TransformerMixin):
         cv=3,
         tol=0.0001,
         max_iter=None,
-        n_jobs=3,
+        n_jobs=-1,
         random_state=None,
+        flip_rf_params = False,
+        max_features = None
     ):
         print("initializing RultFit...", end = "")
         self.tree_generator = tree_generator
@@ -407,7 +426,6 @@ class RuleFit(BaseEstimator, TransformerMixin):
         self.exp_rand_tree_size = exp_rand_tree_size
         self.max_rules = max_rules
         self.sample_fract = sample_fract
-        self.max_rules = max_rules
         self.memory_par = memory_par
         self.tree_size = tree_size
         self.random_state = random_state
@@ -417,6 +435,8 @@ class RuleFit(BaseEstimator, TransformerMixin):
         self.max_iter = max_iter
         self.n_jobs = n_jobs
         self.Cs = Cs
+        self.flip_rf_params = flip_rf_params
+        self.max_features = max_features
         print("done")
 
     def get_rules(rf, exclude_zero_coef=False, subregion=None):
@@ -464,174 +484,229 @@ class RuleFit(BaseEstimator, TransformerMixin):
             rules = rules.ix[rules.coef != 0]
         return rules
 
-    def fit(self, X, y=None, feature_names=None):
+    def fit(self, X, y=None, feature_names=None, identifier = None, X_concat_saved = None):
         """Fit and estimate linear combination of rule ensemble"""
-        ## Enumerate features if feature names not provided
-        print("beginnind to fit RuleFit...", end = "")
-        N = X.shape[0]
-        if feature_names is None:
-            self.feature_names = ["feature_" + str(x) for x in range(0, X.shape[1])]
-        else:
-            self.feature_names = feature_names
-        print(f"model type: {self.model_type}")
-        if "r" in self.model_type:
-            print("selected regression type...", end = "")
-            ## initialise tree generator
-            if self.tree_generator is None:
-                n_estimators_default = int(np.ceil(self.max_rules / self.tree_size))
-                self.sample_fract_ = min(0.5, (100 + 6 * np.sqrt(N)) / N)
-                if self.rfmode == "regress":
-                    self.tree_generator = GradientBoostingRegressor(
-                        n_estimators=n_estimators_default,
-                        max_leaf_nodes=self.tree_size,
-                        learning_rate=self.memory_par,
-                        subsample=self.sample_fract_,
-                        random_state=self.random_state,
-                        max_depth=100,
-                    )
-                    print("created GradientBoostingRegressor..." )
-                    
+        if X_concat_saved is None:
+            if identifier is None:
+                identifier = str(self.max_iter) + "_" + str(self.tol) + "_" + str(self.max_rules) + "_" + str(self.cv) + "_"+ str(self.sample_fract)+ "_"+ str(self.cv)+ "_"
+                identifier = identifier + str(self.memory_par)+ "_"+ str(self.tree_size)+ "_"+ str(self.Cs)+ "_"+ str(self.lin_standardise) + "_"+ str(self.exp_rand_tree_size)
+            ## Enumerate features if feature names not provided
+            print("beginnind to fit RuleFit...", end = "")
+            N = X.shape[0]
+            if feature_names is None:
+                self.feature_names = ["feature_" + str(x) for x in range(0, X.shape[1])]
+            else:
+                self.feature_names = feature_names
+            print(f"model type: {self.model_type}")
+            if "r" in self.model_type:
+                print("selected regression type...", end = "")
+                ## initialise tree generator
+                if self.tree_generator is None:
+                    n_estimators_default = int(np.ceil(self.max_rules / self.tree_size))
+                    self.sample_fract_ = min(0.5, (100 + 6 * np.sqrt(N)) / N)
+                    if self.rfmode == "regress":
+                        self.tree_generator = GradientBoostingRegressor(
+                            n_estimators=n_estimators_default,
+                            max_leaf_nodes=self.tree_size,
+                            learning_rate=self.memory_par,
+                            subsample=self.sample_fract_,
+                            random_state=self.random_state,
+                            max_depth=100,
+                        )
+                        print("created GradientBoostingRegressor..." )
+                        
+                    else:
+                        self.tree_generator = GradientBoostingClassifier(
+                            n_estimators=n_estimators_default,
+                            max_leaf_nodes=self.tree_size,
+                            learning_rate=self.memory_par,
+                            subsample=self.sample_fract_,
+                            random_state=self.random_state,
+                            max_depth=100,
+                        )
+                
+                elif self.tree_generator == "RandomForestRegressor":
+                    self.tree_generator = RandomForestRegressor(n_estimators=  100 if self.flip_rf_params else int(np.ceil(self.max_rules / self.tree_size)),
+                                                                criterion='squared_error',
+                                                                max_depth= int(np.ceil(self.max_rules / self.tree_size)) if self.flip_rf_params else 100,
+                                                                max_leaf_nodes=self.tree_size,
+                                                                min_impurity_decrease=0.0,
+                                                                bootstrap=True,
+                                                                oob_score=False,
+                                                                n_jobs=self.n_jobs,
+                                                                random_state=self.random_state,
+                                                                verbose=3,
+                                                                warm_start=False,
+                                                                ccp_alpha=0.0,
+                                                                max_samples=0.2,
+                                                                max_features = self.max_features,
+                                                                monotonic_cst=None)
+                    print("created RandomForestRegressor")
+                    # delete (initialize) attribute of learned tree_generator
+                    delete_attributes_ = [
+                        "estimators_",
+                    ]
+                    for attribute in delete_attributes_:
+                        if hasattr(self.tree_generator, attribute):
+                            delattr(self.tree_generator, attribute)
+                            print(f"delete {attribute}")
+                
                 else:
-                    self.tree_generator = GradientBoostingClassifier(
-                        n_estimators=n_estimators_default,
-                        max_leaf_nodes=self.tree_size,
-                        learning_rate=self.memory_par,
-                        subsample=self.sample_fract_,
-                        random_state=self.random_state,
-                        max_depth=100,
-                    )
-            else:
-                # delete (initialize) attribute of learned tree_generator
-                delete_attributes_ = [
-                    "estimators_",
-                ]
-                for attribute in delete_attributes_:
-                    if hasattr(self.tree_generator, attribute):
-                        delattr(self.tree_generator, attribute)
-                        print(f"delete {attribute}")
-            if self.rfmode == "regress":
-                if type(self.tree_generator) not in [
-                    GradientBoostingRegressor,
-                    RandomForestRegressor,
-                ]:
-                    raise ValueError(
-                        "RuleFit only works with RandomForest and BoostingRegressor"
-                    )
-            else:
-                if type(self.tree_generator) not in [
-                    GradientBoostingClassifier,
-                    RandomForestClassifier,
-                ]:
-                    raise ValueError(
-                        "RuleFit only works with RandomForest and BoostingClassifier"
-                    )
+                    # delete (initialize) attribute of learned tree_generator
+                    delete_attributes_ = [
+                        "estimators_",
+                    ]
+                    for attribute in delete_attributes_:
+                        if hasattr(self.tree_generator, attribute):
+                            delattr(self.tree_generator, attribute)
+                            print(f"delete {attribute}")
+                if self.rfmode == "regress":
+                    if type(self.tree_generator) not in [
+                        GradientBoostingRegressor,
+                        RandomForestRegressor,
+                    ]:
+                        raise ValueError(
+                            "RuleFit only works with RandomForest and BoostingRegressor"
+                        )
+                else:
+                    if type(self.tree_generator) not in [
+                        GradientBoostingClassifier,
+                        RandomForestClassifier,
+                    ]:
+                        raise ValueError(
+                            "RuleFit only works with RandomForest and BoostingClassifier"
+                        )
 
-            ## fit tree generator
-            print("Fitting tree generator...", end = "")
-            if not self.exp_rand_tree_size:  # simply fit with constant tree size
-                self.tree_generator.fit(X, y)
-            else:  # randomise tree size as per Friedman 2005 Sec 3.3
-                np.random.seed(self.random_state)
-                tree_sizes = np.random.exponential(
-                    scale=self.tree_size - 2,
-                    size=int(np.ceil(self.max_rules * 2 / self.tree_size)),
+                ## fit tree generator
+                print("Fitting tree generator...", end = "")
+                if not self.exp_rand_tree_size:  # simply fit with constant tree size
+                    self.tree_generator.fit(X, y)
+                else:  # randomise tree size as per Friedman 2005 Sec 3.3
+                    np.random.seed(self.random_state)
+                    tree_sizes = np.random.exponential(
+                        scale=self.tree_size - 2,
+                        size=int(np.ceil(self.max_rules * 2 / self.tree_size)),
+                    )
+                    tree_sizes = np.asarray(
+                        [2 + np.floor(tree_sizes[i_]) for i_ in np.arange(len(tree_sizes))],
+                        dtype=int,
+                    )
+                    i = int(len(tree_sizes) / 4)
+                    while np.sum(tree_sizes[0:i]) < self.max_rules:
+                        i = i + 1
+                    tree_sizes = tree_sizes[0:i]
+                    
+                    def fit_tree_with_size(size, idx, X, y, tree_gen, random_state_base):
+                        """Fit a single tree with specified size"""
+                        gen = deepcopy(tree_gen)
+                        gen.set_params(n_estimators=1, max_leaf_nodes=size)
+                        random_state_add = random_state_base if random_state_base else 0
+                        gen.set_params(random_state=idx + random_state_add)
+                        gen.fit(np.copy(X, order="C"), np.copy(y, order="C"))
+                        return gen
+                    
+                    print(f"Fitting {len(tree_sizes)} trees in parallel")
+                    fitted_generators = Parallel(n_jobs=self.n_jobs)(
+                        delayed(fit_tree_with_size)(size, i_size, X, y, self.tree_generator, self.random_state)
+                        for i_size, size in enumerate(tree_sizes)
+                    )
+                    
+                    # Combine all estimators into single generator
+                    self.tree_generator.set_params(warm_start=True)
+                    all_estimators = []
+                    for gen in fitted_generators:
+                        all_estimators.extend(gen.estimators_)
+                    self.tree_generator.estimators_ = np.array(all_estimators)
+                    print(f"Finished creating {len(all_estimators)} trees.")
+                    self.tree_generator.set_params(warm_start=False)
+                    
+                tree_list = self.tree_generator.estimators_
+                if isinstance(self.tree_generator, RandomForestRegressor) or isinstance(
+                    self.tree_generator, RandomForestClassifier
+                ):
+                    tree_list = [[x] for x in self.tree_generator.estimators_]
+                #ADDED LINE BELOW HERE
+                print("Finished creating rules, extracting rules now")
+
+                ## extract rules
+                self.rule_ensemble = RuleEnsemble(
+                    tree_list=tree_list, feature_names=self.feature_names
                 )
-                tree_sizes = np.asarray(
-                    [2 + np.floor(tree_sizes[i_]) for i_ in np.arange(len(tree_sizes))],
-                    dtype=int,
-                )
-                i = int(len(tree_sizes) / 4)
-                while np.sum(tree_sizes[0:i]) < self.max_rules:
-                    i = i + 1
-                tree_sizes = tree_sizes[0:i]
-                self.tree_generator.set_params(warm_start=True)
-                curr_est_ = 0
-                for i_size in np.arange(len(tree_sizes)):
-                    size = tree_sizes[i_size]
-                    print(f"Fitting tree {curr_est_ +1}/{len(tree_sizes)} with tree size {size}.")
-                    self.tree_generator.set_params(n_estimators=curr_est_ + 1)
-                    self.tree_generator.set_params(max_leaf_nodes=size)
-                    random_state_add = self.random_state if self.random_state else 0
-                    self.tree_generator.set_params(
-                        random_state=i_size + random_state_add
-                    )  # warm_state=True seems to reset random_state, such that the trees are highly correlated, unless we manually change the random_sate here.
-                    self.tree_generator.get_params()["n_estimators"]
-                    self.tree_generator.fit(
-                        np.copy(X, order="C"), np.copy(y, order="C")
-                    )
-                    curr_est_ = curr_est_ + 1
-                print(f"Finished creating trees.")
-                self.tree_generator.set_params(warm_start=False)
-            tree_list = self.tree_generator.estimators_
-            if isinstance(self.tree_generator, RandomForestRegressor) or isinstance(
-                self.tree_generator, RandomForestClassifier
-            ):
-                tree_list = [[x] for x in self.tree_generator.estimators_]
-            #ADDED LINE BELOW HERE
-            print("Finished creating rules, extracting rules now")
+                #ADDED LINE BELOW HERE
+                print("Finished extracting rules, concatenate original features and rules now")
 
-            ## extract rules
-            self.rule_ensemble = RuleEnsemble(
-                tree_list=tree_list, feature_names=self.feature_names
-            )
-            #ADDED LINE BELOW HERE
-            print("Finished extracting rules, concatenate original features and rules now")
+                ## concatenate original features and rules
+                X_rules = self.rule_ensemble.transform(X)
+                
+                #ADDED LINE BELOW HERE
+                print("Finished concatenating original features and rules")
 
-            ## concatenate original features and rules
-            X_rules = self.rule_ensemble.transform(X)
+            ## standardise linear variables if requested (for regression model only)
+            if "l" in self.model_type:
+                #ADDED LINE BELOW HERE
+                print("standardizing linear variables...", end = "")
+                ## standard deviation and mean of winsorized features
+                self.winsorizer.train(X)
+                winsorized_X = self.winsorizer.trim(X)
+                self.stddev = np.std(winsorized_X, axis=0)
+                self.mean = np.mean(winsorized_X, axis=0)
+
+                if self.lin_standardise:
+                    self.friedscale.train(X)
+                    X_regn = self.friedscale.scale(X)
+                else:
+                    X_regn = X.copy()
+                #ADDED LINE BELOW HERE
+                print("done")
+
+            ## Compile Training data
+            print("compiling training data...", end = "") #ADDED THIS LINE
+            X_concat = np.zeros([X.shape[0], 0])
+            if "l" in self.model_type:
+                X_concat = np.concatenate((X_concat, X_regn), axis=1)
+            if "r" in self.model_type:
+                if X_rules.shape[0] > 0:
+                    X_concat = np.concatenate((X_concat, X_rules), axis=1)
+            print("done") #ADDED THIS LINE
+
+            #import pickle
+            #pickle.dump(X_concat, open(f"X_concat_{identifier}.pkl", "wb"))
+            #print(f"saved X_concat to file X_concat_{identifier}.pkl") #ADDED THIS LINE
             
-            #ADDED LINE BELOW HERE
-            print("Finished concatenating original features and rules")
-
-        ## standardise linear variables if requested (for regression model only)
-        if "l" in self.model_type:
-            #ADDED LINE BELOW HERE
-            print("standardizing linear variables...", end = "")
-            ## standard deviation and mean of winsorized features
-            self.winsorizer.train(X)
-            winsorized_X = self.winsorizer.trim(X)
-            self.stddev = np.std(winsorized_X, axis=0)
-            self.mean = np.mean(winsorized_X, axis=0)
-
-            if self.lin_standardise:
-                self.friedscale.train(X)
-                X_regn = self.friedscale.scale(X)
-            else:
-                X_regn = X.copy()
-            #ADDED LINE BELOW HERE
-            print("done")
-
-        ## Compile Training data
-        print("compiling training data...", end = "") #ADDED THIS LINE
-        X_concat = np.zeros([X.shape[0], 0])
-        if "l" in self.model_type:
-            X_concat = np.concatenate((X_concat, X_regn), axis=1)
-        if "r" in self.model_type:
-            if X_rules.shape[0] > 0:
-                X_concat = np.concatenate((X_concat, X_rules), axis=1)
-        print("done") #ADDED THIS LINE
-
+        else:
+            print("loading X_concat from file...", end = "") #ADDED THIS LINE
+            X_concat = X_concat_saved
+            print("done") #ADDED THIS LINE
         ## fit Lasso
         print(f"fitting lasso, rfmode = {self.rfmode}...") #ADDED THIS LINE
         if self.rfmode == "regress":
             if self.Cs is None:  # use defaultshasattr(self.Cs, "__len__"):
-                #n_alphas = 100
                 alphas = 100
             elif hasattr(self.Cs, "__len__"):
-                #n_alphas = None
                 alphas = 1.0 / self.Cs
             else:
                 alphas = self.Cs
-            print(f"alphas = {alphas}")
-            self.lscv = LassoCV(
-                alphas=alphas,
-                copy_X = False, #changes this
-                cv=self.cv,
-                max_iter=self.max_iter,
-                tol=self.tol,
-                n_jobs=self.n_jobs,
-                random_state=self.random_state,
-            )
+            print(f"alphas = {alphas}, lassotype: {'standard' if standard_lasso else 'cv'}") #ADDED THIS LINE
+            if not standard_lasso:
+                print("initializing lasso cv...", end = "")
+                self.lscv = LassoCV(
+                    alphas=alphas,
+                    copy_X = copy_X ,
+                    cv=self.cv,
+                    max_iter=self.max_iter,
+                    tol=self.tol,
+                    n_jobs=self.n_jobs,
+                    random_state=self.random_state,
+                )
+            else:
+                print("initializing standard lasso...", end = "")
+                self.lscv = Lasso(
+                    alpha=alphas,
+                    max_iter=self.max_iter,
+                    tol=self.tol,
+                    random_state=self.random_state,
+                    copy_X = copy_X
+                )
             print("initialized lasso...", end = "")
             self.lscv.fit(X_concat, y)
             print("finished fitting lasso...", end = "")
